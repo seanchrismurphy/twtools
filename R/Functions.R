@@ -77,7 +77,7 @@ dictionary_count <- function(tweets, group = 'tweet') {
 
 #' Create Closed Network
 #'
-#' This function takes a vector of users (e.g. of the form c('seanchrismurphy', 'lydiahayward2', 'katiegreenaway')) and returns
+#' This function takes a vector of users (e.g. of the form c('seanchrismurphy', 'LydiaHayward2', 'katiehgreenaway')) and returns
 #' a data frame of followership links between those users. By default, it will ignore users with more than 5000 followers, to save
 #' on computing time and remove celebrities. However this behavior can be changed with max.followers.
 #' @param usernames A vector of usernames.
@@ -182,3 +182,96 @@ clean_tweets <- function(tweets, reg = "([^A-Za-z\\d#@']|'(?![A-Za-z\\d#@]))", h
   tweet_words
 }
 
+#' Collects timelines of followers
+#'
+#' This function takes a vector of users (e.g. c('seanchrismurphy', LydiaHayward2', 'katiehgreenaway)), and then collects the timelines of their 
+#' followers, returning a dataset with up to nstatus tweets for each of nfollowers, for ever user entered. For instance if you input five
+#' users with nfollowers = 100 and ntatus = 200, you would retrieve up to 100, 000 tweets (though usually substantially less, do to sparse
+#' timelines)
+#' @param users The list of users whose followers you wish to collect.
+#' @param nfollowers Defaults to 100. The maximum number of followers you wish to collect for each user.
+#' @param nstatus Defaults to 200. The maximum number of statuses you wish to collect for each follower.
+#' @param minstatus Defaults to 20. The minimum number of tweets a follower must have for you to download their timeline.
+#' @param language Defaults to 'en'. A filter to only collect users of the specified language. 
+#' @export
+
+collect_follower_timelines <- function(users, nfollowers = 100, nstatus = 200, minstatus = 20, language = 'en') {
+  followers <- sapply(users, function(x) x$getFollowers(n = nfollowers, retryOnRateLimit = 80))
+  followers <- unlist(followers)
+  followers <- followers[sample(1:length(followers), length(followers))]
+  followers <- followers[!sapply(followers, function(x) x$protected)]
+  followers <- followers[sapply(followers, function(x) x$statusesCount) >= minstatus]
+  followers <- followers[sapply(followers, function(x) x$lang) %in% language]
+  
+  timelines <- list()
+  
+  # This loop runs through the first 100 followers in our shuffled lists, and retrieves their timelines.
+  for (i in 1:length(followers)) {
+    # This line retrieves the most recent 200 tweets from one followers timeline
+    timelines[[i]] <- userTimeline(followers[i], n = nstatus, retryOnRateLimit = 20)
+    # This line tells the loop to wait when the API has rate limited us
+    while (any(getCurRateLimitInfo()$remaining %in% 0)) {
+      Sys.sleep (60)
+    }
+  }
+  
+  timelines <- timelines[sapply(timelines, length) >= minstatus]
+  timelinesdf <- lapply(timelines, twListToDF)
+  timelinesdf <- do.call('rbind', timelinesdf)
+  timelinesdf
+}
+
+#' Creates a mentions network
+#'
+#' This function takes a dataset of tweets (not already cleaned with clean_tweets) and returns a dataset of links between
+#' users based on whether one has mentioned (e.g. @seanchrismurphy) the other. This dataset can then be used as input to 
+#' igraph using graph_from_edgelist.
+#' @param tweets This is the input data.
+#' @param closed Defaults to FALSE. If set to TRUE, will remove mentions of anyone who hasn't tweeted within the input dataset, 
+#' effectively making it a closed network (this will remove mentions of news sources in most cases, for instance). 
+#' @export
+
+create_mentions_network <- function(tweets, closed = FALSE) {
+  mentions <- clean_tweets(tweets, remove.mentions = FALSE)
+  mentions <- mentions[str_detect(mentions$word, '^@'), c('screenName', 'word')]
+  mentions$word <- gsub('^@', '', mentions$word)
+  
+  if (closed == TRUE) {
+    mentions <- mentions[mentions$word %in% mentions$screenName, ]
+  }
+  
+  # Now we turn that data into social network format using the igraph package in R which handles networks. 
+  links <- mentions
+  colnames(links) <- c('source', 'target')
+  links
+}
+
+#' Get timelines
+#'
+#' This function takes a vector of users (e.g. of the form c('seanchrismurphy', 'lydiahayward2', 'katiegreenaway')) and returns
+#' a data frame containing up to 3200 tweets of each of them, depending on nstatus.
+#' @param tweets This is the input data.
+#' @param nstatus Defaults to 200. This is the maximum number of tweets that will be returned for each user.
+#' @param includeRts Defaults to FALSE. This determines whether tweets that the user has retweeted will be returned. These tweets
+#' are included in nstatus no matter what (this is a limitation of the Twitter API), so when includeRts is set to FALSE, some number less
+#' than nstatus tweets will be returned for each user, depending on how many retweets they have made.
+#' @export
+ 
+get_timelines <- function(users, nstatus = 200, includeRts = FALSE) {
+  
+  timelines <- list()
+  
+  # This loop runs through the first 100 followers in our shuffled lists, and retrieves their timelines.
+  for (i in 1:length(users)) {
+    # This line retrieves the most recent 200 tweets from one followers timeline
+    timelines[[i]] <- userTimeline(users[i], n = nstatus, includeRts = includeRts, retryOnRateLimit = 20)
+    # This line tells the loop to wait when the API has rate limited us
+    while (any(getCurRateLimitInfo()$remaining %in% 0)) {
+      Sys.sleep (60)
+    }
+  }
+  
+  timelinesdf <- lapply(timelines, twListToDF)
+  timelinesdf <- do.call('rbind', timelinesdf)
+  timelinesdf
+}
