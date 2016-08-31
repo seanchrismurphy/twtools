@@ -7,9 +7,9 @@
 #' @param group Defaults to 'tweet', can be set to 'group' when working with timelines. If set to 'tweet' when working with timelines, will return one row per tweet.
 #' @export
 
-dictionary_count <- function(tweets, group = 'tweet') {
-  if (!group %in% c('tweet', 'user')) {
-    stop("group must be either 'tweet' or 'user'")
+dictionary_count <- function(tweets, type = 'tweet') {
+  if (!type %in% c('tweet', 'timeline')) {
+    stop("type must be either 'tweet' or 'timeline'")
   }
   library(tidytext)
   
@@ -20,7 +20,7 @@ dictionary_count <- function(tweets, group = 'tweet') {
   
   # Not sure if dplyr can read a variable from outside the tweet dataframe so let's just do
   # two separate things.
-   if (group %in% 'tweet') {
+   if (type %in% 'tweet') {
      tweets <- tweets %>%
        group_by(id) %>%
        mutate(
@@ -46,7 +46,7 @@ dictionary_count <- function(tweets, group = 'tweet') {
        as.data.frame()
    }
   
-  if (group %in% 'user') {
+  if (type %in% 'timeline') {
     tweets <- tweets %>%
       group_by(screenName) %>%
       mutate(
