@@ -275,3 +275,22 @@ get_timelines <- function(users, nstatus = 200, includeRts = FALSE) {
   timelinesdf <- do.call('rbind', timelinesdf)
   timelinesdf
 }
+
+
+#' Get Followers
+#'
+#' This is a convenience function to get user followers a little more cleanly
+#' than the default in the twitteR package. 
+
+get_Followers <- function(list) {
+  lapply(list, function(x) x$getFollowers())
+}
+
+#' Get Friends
+#'
+#' This is a convenience function to get user friends a little more cleanly
+#' than the default in the twitteR package. 
+
+get_Friends <- function(list) {
+  lapply(list, function(x) x$getFriends())
+}
