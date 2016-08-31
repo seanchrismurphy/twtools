@@ -280,17 +280,33 @@ get_timelines <- function(users, nstatus = 200, includeRts = FALSE) {
 #' Get Followers
 #'
 #' This is a convenience function to get user followers a little more cleanly
-#' than the default in the twitteR package. 
+#' than the default in the twitteR package. It takes a list of user objects
+#' returned by lookupUsers, and returns a dataset of user information for the
+#' followers of those users. It attached a 'following' variable to the dataset
+#' to track who is following who. 
 
-get_Followers <- function(user) {
-  user$getFollowers()
+get_Followers <- function(users) {
+  out <- list()
+  for (i in 1:length(users)) {
+    out[[i]] <- twListToDF(users[[i]]$getFollowers())
+    out[[i]]$following <- users[[i]]$screenName
+  }
+  do.call('rbind', out)
 }
 
 #' Get Friends
 #'
 #' This is a convenience function to get user friends a little more cleanly
-#' than the default in the twitteR package. 
+#' than the default in the twitteR package. It takes a list of user objects
+#' returned by lookupUsers, and returns a dataset of user information for the
+#' friends of those users. It attached a 'followed_by' variable to the dataset
+#' to track who is followed by which users.
 
-get_Friends <- function(user) {
-  user$getFriends()
+get_Friends <- function(users) {
+  out <- list()
+  for (i in 1:length(users)) {
+    out[[i]] <- twListToDF(users[[i]]$getFriends())
+    out[[i]]$followed_by <- users[[i]]$screenName
+  }
+  do.call('rbind', out)
 }
