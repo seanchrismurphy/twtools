@@ -36,11 +36,11 @@ dictionary_count <- function(tweets, group = 'tweet') {
          'sadness_count' = sum(word %in% nrc[nrc$sentiment %in% 'sadness', 'word']),
          'surprise_count' = sum(word %in% nrc[nrc$sentiment %in% 'surprise', 'word']),
          'trust_count' = sum(word %in% nrc[nrc$sentiment %in% 'trust', 'word']),
-         'anger_prop' = 100*anger_count/word_count,'anticipation_prop' = 100*anticipation_count/word_count,
-         'disgust_prop' = 100*disgust_count/word_count,'fear_prop' = 100*fear_count/word_count,
-         'joy_prop' = 100*joy_count/word_count,'negative_prop' = 100*negative_count/word_count,
-         'positive_prop' = 100*positive_count/word_count,'sadness_prop' = 100*sadness_count/word_count,
-         'surprise_prop' = 100*surprise_count/word_count, 'trust_prop' = 100*trust_count/word_count
+         'anger_perc' = 100*anger_count/word_count,'anticipation_perc' = 100*anticipation_count/word_count,
+         'disgust_perc' = 100*disgust_count/word_count,'fear_perc' = 100*fear_count/word_count,
+         'joy_perc' = 100*joy_count/word_count,'negative_perc' = 100*negative_count/word_count,
+         'positive_perc' = 100*positive_count/word_count,'sadness_perc' = 100*sadness_count/word_count,
+         'surprise_perc' = 100*surprise_count/word_count, 'trust_perc' = 100*trust_count/word_count
        ) %>%
        slice(1) %>%
        as.data.frame()
@@ -62,11 +62,11 @@ dictionary_count <- function(tweets, group = 'tweet') {
         'sadness_count' = sum(word %in% nrc[nrc$sentiment %in% 'sadness', 'word']),
         'surprise_count' = sum(word %in% nrc[nrc$sentiment %in% 'surprise', 'word']),
         'trust_count' = sum(word %in% nrc[nrc$sentiment %in% 'trust', 'word']),
-        'anger_prop' = 100*anger_count/word_count,'anticipation_prop' = 100*anticipation_count/word_count,
-        'disgust_prop' = 100*disgust_count/word_count,'fear_prop' = 100*fear_count/word_count,
-        'joy_prop' = 100*joy_count/word_count,'negative_prop' = 100*negative_count/word_count,
-        'positive_prop' = 100*positive_count/word_count,'sadness_prop' = 100*sadness_count/word_count,
-        'surprise_prop' = 100*surprise_count/word_count,'trust_prop' = 100*trust_count/word_count
+        'anger_perc' = 100*anger_count/word_count,'anticipation_perc' = 100*anticipation_count/word_count,
+        'disgust_perc' = 100*disgust_count/word_count,'fear_perc' = 100*fear_count/word_count,
+        'joy_perc' = 100*joy_count/word_count,'negative_perc' = 100*negative_count/word_count,
+        'positive_perc' = 100*positive_count/word_count,'sadness_perc' = 100*sadness_count/word_count,
+        'surprise_perc' = 100*surprise_count/word_count,'trust_perc' = 100*trust_count/word_count
       ) %>%
       slice(1) %>%
       as.data.frame()
@@ -282,8 +282,8 @@ get_timelines <- function(users, nstatus = 200, includeRts = FALSE) {
 #' This is a convenience function to get user followers a little more cleanly
 #' than the default in the twitteR package. 
 
-get_Followers <- function(list) {
-  lapply(list, function(x) x$getFollowers())
+get_Followers <- function(user) {
+  user$getFollowers()
 }
 
 #' Get Friends
@@ -291,6 +291,6 @@ get_Followers <- function(list) {
 #' This is a convenience function to get user friends a little more cleanly
 #' than the default in the twitteR package. 
 
-get_Friends <- function(list) {
-  lapply(list, function(x) x$getFriends())
+get_Friends <- function(user) {
+  user$getFriends()
 }

@@ -15,7 +15,7 @@ create_closed_network(usernames, max.followers = 5000,
 \item{retryOnRateLimit}{is set to 120 by default, meaning the function will run until completion.}
 }
 \description{
-This function takes a vector of users (e.g. of the form c('seanchrismurphy', 'lydiahayward2', 'katiegreenaway')) and returns
+This function takes a vector of users (e.g. of the form c('seanchrismurphy', 'LydiaHayward2', 'katiehgreenaway')) and returns
 a data frame of followership links between those users. By default, it will ignore users with more than 5000 followers, to save
 on computing time and remove celebrities. However this behavior can be changed with max.followers.
 }
