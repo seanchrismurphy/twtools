@@ -4,10 +4,13 @@
 \alias{get_Followers}
 \title{Get Followers}
 \usage{
-get_Followers(user)
+get_Followers(users)
 }
 \description{
 This is a convenience function to get user followers a little more cleanly
-than the default in the twitteR package.
+than the default in the twitteR package. It takes a list of user objects
+returned by lookupUsers, and returns a dataset of user information for the
+followers of those users. It attached a 'following' variable to the dataset
+to track who is following who.
 }
 

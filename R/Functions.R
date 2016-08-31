@@ -198,14 +198,15 @@ clean_tweets <- function(tweets, reg = "([^A-Za-z\\d#@']|'(?![A-Za-z\\d#@]))", h
 collect_follower_timelines <- function(users, nfollowers = 100, nstatus = 200, minstatus = 20, language = 'en') {
   followers <- sapply(users, function(x) x$getFollowers(n = nfollowers, retryOnRateLimit = 80))
   followers <- unlist(followers)
-  followers <- followers[sample(1:length(followers), length(followers))]
+  # This line removes followers who are protected, because the API will fail when attempting to retrieve their
+  # timelines
   followers <- followers[!sapply(followers, function(x) x$protected)]
   followers <- followers[sapply(followers, function(x) x$statusesCount) >= minstatus]
   followers <- followers[sapply(followers, function(x) x$lang) %in% language]
   
   timelines <- list()
   
-  # This loop runs through the first 100 followers in our shuffled lists, and retrieves their timelines.
+  # This loop runs through the followers in our shuffled lists, and retrieves their timelines.
   for (i in 1:length(followers)) {
     # This line retrieves the most recent 200 tweets from one followers timeline
     timelines[[i]] <- userTimeline(followers[i], n = nstatus, retryOnRateLimit = 20)
@@ -261,7 +262,7 @@ get_timelines <- function(users, nstatus = 200, includeRts = FALSE) {
   
   timelines <- list()
   
-  # This loop runs through the first 100 followers in our shuffled lists, and retrieves their timelines.
+  # This loop runs through the users and retrieves their timelines.
   for (i in 1:length(users)) {
     # This line retrieves the most recent 200 tweets from one followers timeline
     timelines[[i]] <- userTimeline(users[i], n = nstatus, includeRts = includeRts, retryOnRateLimit = 20)

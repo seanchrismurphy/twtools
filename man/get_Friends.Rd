@@ -4,10 +4,13 @@
 \alias{get_Friends}
 \title{Get Friends}
 \usage{
-get_Friends(user)
+get_Friends(users)
 }
 \description{
 This is a convenience function to get user friends a little more cleanly
-than the default in the twitteR package.
+than the default in the twitteR package. It takes a list of user objects
+returned by lookupUsers, and returns a dataset of user information for the
+friends of those users. It attached a 'followed_by' variable to the dataset
+to track who is followed by which users.
 }
 
