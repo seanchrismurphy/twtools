@@ -1,10 +1,11 @@
 #' Dictionary count
 #'
 #' This function takes a data frame of tweets that has been cleaned with clean_tweets, and compares each word to the NRC lexicon.
-#' Depending on the group parameter, it will then un-tokenize the tweets, giving either a clean tweet per row (if group is set
-#' # to "tweet") or a clean user timeline per row (if group is set to "user").
+#' Depending on the type parameter, it will then un-tokenize the tweets, giving either a clean tweet per row (if type is set
+#' to "tweet") or a clean user timeline per row (if type is set to "timeline").
 #' @param tweets This is the input data.
-#' @param group Defaults to 'tweet', can be set to 'group' when working with timelines. If set to 'tweet' when working with timelines, will return one row per tweet.
+#' @param type Defaults to 'tweet', can be set to 'timeline' when working with timelines. If set to 'tweet' when working with timelines, 
+#' will return one row per tweet.
 #' @export
 
 dictionary_count <- function(tweets, type = 'tweet') {
