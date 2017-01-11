@@ -1,3 +1,51 @@
+#' tot_limits
+#'
+#' This utility function gets the requests remaining across multiple Twitter authentication tokens. Likely to 
+#' be made redundant by updated to rtweet in the near future.
+#' @param query Defaults to NULL, which retrieves all limits, but can be used to specify a query such as 
+#' 'application/ratestatus' to only get a specific set of limits. 
+#' @param token This allows you to specify which token to check on, if you only want to check on one. Default is
+#' to check all
+
+tot_limits <- function(query = NULL, token = get_tokens()) {
+  
+  if (length(token) == 1) {
+    limits <- rate_limit(token, query = query)
+  } else {
+    limits <- lapply(token, rate_limit, query = query)
+    tot_limit <- do.call('cbind', limits)
+    
+    limits <- data.frame('query' = tot_limit[, 1], 'limit' = tot_limit[, 2], 'remaining' =
+                           rowSums(tot_limit[, grep('remaining', colnames(tot_limit))]),
+                         'reset' = do.call('pmin', tot_limit[, grep('reset', colnames(tot_limit))]))
+  }
+  return(limits)
+}
+
+#' control_rate_limit
+#'
+#' This utility function helps to write loops to download Twitter data while respecting rate limits. If you
+#' specify a query type, it will pause and wait until the next 15-minute window before continuing. So it can
+#' be inserted in loops before a call to, say, get_friends, and will ensure you aren't rate limited. The 
+#' limit parameter optionally lets you set the threshold for pausing to a level above zero, for specific
+#' use cases. The token parameter allows you to set a limit for a specific token rather than a set, which is
+#' occasionally useful.
+#' @param query Required. Used to specify a query such as 'application/ratestatus'. 
+#' @param limit Allows you to set the limit at which the function will pause. Defaults to zero.
+#' @param token This allows you to specify which token to check on, if you only want to check on one. Default is
+#' to check all
+#' @export
+control_rate_limit <- function(query = NULL, limit = NULL, token = get_tokens()) {
+  # Basically, if we just give the query, it pauses if we have zero requests left. If we add a limit, 
+  # it pauses if we have less than that limit remaining. 
+  limits <- tot_limits(query, token = token)
+  if(limits[['remaining']] < max(1, limit)) {
+    print(paste0('sleeping for ', as.numeric(limits[['reset']]), ' minutes.'))
+    Sys.sleep(as.numeric(limits[['reset']]))
+  }
+}
+
+
 #' Dictionary count
 #'
 #' This function takes a data frame of tweets that has been cleaned with clean_tweets, and compares each word to the NRC lexicon.
