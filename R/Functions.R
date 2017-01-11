@@ -1,4 +1,4 @@
-#' tot_limits
+#' Get total rate limits
 #'
 #' This utility function gets the requests remaining across multiple Twitter authentication tokens. Likely to 
 #' be made redundant by updated to rtweet in the near future.
@@ -22,7 +22,7 @@ tot_limits <- function(query = NULL, token = get_tokens()) {
   return(limits)
 }
 
-#' control_rate_limit
+#' Control requests in line with the rate limit
 #'
 #' This utility function helps to write loops to download Twitter data while respecting rate limits. If you
 #' specify a query type, it will pause and wait until the next 15-minute window before continuing. So it can
@@ -48,188 +48,196 @@ control_rate_limit <- function(query = NULL, limit = NULL, token = get_tokens())
 
 #' Dictionary count
 #'
-#' This function takes a data frame of tweets that has been cleaned with clean_tweets, and compares each word to the NRC lexicon.
-#' Depending on the type parameter, it will then un-tokenize the tweets, giving either a clean tweet per row (if type is set
-#' to "tweet") or a clean user timeline per row (if type is set to "timeline").
+#' This function takes a data frame of tweets, cleans them with clean_tweets if that has not already been done,
+#' and compares each word to the NRC lexicon. It returns counts and a word count, which can be used to turn the
+#' raw counts into percentages at your discretion (often a good idea). It's important to note that this function
+#' only does exact matching to the NRC lexica, which often do not include stems. So you may which to optionally
+#' stem the tokens in the clean_tweets column to get more accurate counts, though this is a decision about
+#' which there is some debate (e.g. see Kern et al, 2016). Counts are returned at the tweet level, and will
+#' need to be aggregated to the person level if you have multiple tweets from each individual.
 #' @param tweets This is the input data.
-#' @param type Defaults to 'tweet', can be set to 'timeline' when working with timelines. If set to 'tweet' when working with timelines, 
-#' will return one row per tweet.
+#' @param clean Defaults to TRUE, which will clean the data with clean_tweets if there isn't a clean_text column.
+#' At present, the function will fail if this is set to FALSE and there is not a clean_tweets column in the data,
+#' so it's not much use, but left in for future adjustments.
 #' @export
 
-dictionary_count <- function(tweets, type = 'tweet') {
-  if (!type %in% c('tweet', 'timeline')) {
-    stop("type must be either 'tweet' or 'timeline'")
+dictionary_count <- function(tweets, clean = TRUE) {
+  
+  if (clean == TRUE & is.null(tweets$clean_text)) {
+    tweets <- clean_tweets(tweets)
   }
-  library(tidytext)
+  
+  count_tweets <- tweets[, c('status_id', 'clean_text')]
   
   nrc <- sentiments %>%
     filter(lexicon == "nrc") %>%
     dplyr::select(word, sentiment) %>%
     as.data.frame()
   
-  # Not sure if dplyr can read a variable from outside the tweet dataframe so let's just do
-  # two separate things.
-   if (type %in% 'tweet') {
-     tweets <- tweets %>%
-       group_by(id) %>%
-       mutate(
-         'clean_text' = paste(word, collapse = ' '),
-         'word_count' = n(),
-         'anger_count' = sum(word %in% nrc[nrc$sentiment %in% 'anger', 'word']),
-         'anticipation_count' = sum(word %in% nrc[nrc$sentiment %in% 'anticipation', 'word']),
-         'disgust_count' = sum(word %in% nrc[nrc$sentiment %in% 'disgust', 'word']),
-         'fear_count' = sum(word %in% nrc[nrc$sentiment %in% 'fear', 'word']),
-         'joy_count' = sum(word %in% nrc[nrc$sentiment %in% 'joy', 'word']),
-         'negative_count' = sum(word %in% nrc[nrc$sentiment %in% 'negative', 'word']),
-         'positive_count' = sum(word %in% nrc[nrc$sentiment %in% 'positive', 'word']),
-         'sadness_count' = sum(word %in% nrc[nrc$sentiment %in% 'sadness', 'word']),
-         'surprise_count' = sum(word %in% nrc[nrc$sentiment %in% 'surprise', 'word']),
-         'trust_count' = sum(word %in% nrc[nrc$sentiment %in% 'trust', 'word']),
-         'anger_perc' = 100*anger_count/word_count,'anticipation_perc' = 100*anticipation_count/word_count,
-         'disgust_perc' = 100*disgust_count/word_count,'fear_perc' = 100*fear_count/word_count,
-         'joy_perc' = 100*joy_count/word_count,'negative_perc' = 100*negative_count/word_count,
-         'positive_perc' = 100*positive_count/word_count,'sadness_perc' = 100*sadness_count/word_count,
-         'surprise_perc' = 100*surprise_count/word_count, 'trust_perc' = 100*trust_count/word_count
-       ) %>%
-       slice(1) %>%
-       as.data.frame()
-   }
+  wordsalad <- count_tweets %>%
+    unnest_tokens(word, clean_text, token = 'regex', pattern = " ")
   
-  if (type %in% 'timeline') {
-    tweets <- tweets %>%
-      group_by(screenName) %>%
-      mutate(
-        'clean_text' = paste(word, collapse = ' '),
-        'word_count' = n(),
-        'anger_count' = sum(word %in% nrc[nrc$sentiment %in% 'anger', 'word']),
-        'anticipation_count' = sum(word %in% nrc[nrc$sentiment %in% 'anticipation', 'word']),
-        'disgust_count' = sum(word %in% nrc[nrc$sentiment %in% 'disgust', 'word']),
-        'fear_count' = sum(word %in% nrc[nrc$sentiment %in% 'fear', 'word']),
-        'joy_count' = sum(word %in% nrc[nrc$sentiment %in% 'joy', 'word']),
-        'negative_count' = sum(word %in% nrc[nrc$sentiment %in% 'negative', 'word']),
-        'positive_count' = sum(word %in% nrc[nrc$sentiment %in% 'positive', 'word']),
-        'sadness_count' = sum(word %in% nrc[nrc$sentiment %in% 'sadness', 'word']),
-        'surprise_count' = sum(word %in% nrc[nrc$sentiment %in% 'surprise', 'word']),
-        'trust_count' = sum(word %in% nrc[nrc$sentiment %in% 'trust', 'word']),
-        'anger_perc' = 100*anger_count/word_count,'anticipation_perc' = 100*anticipation_count/word_count,
-        'disgust_perc' = 100*disgust_count/word_count,'fear_perc' = 100*fear_count/word_count,
-        'joy_perc' = 100*joy_count/word_count,'negative_perc' = 100*negative_count/word_count,
-        'positive_perc' = 100*positive_count/word_count,'sadness_perc' = 100*sadness_count/word_count,
-        'surprise_perc' = 100*surprise_count/word_count,'trust_perc' = 100*trust_count/word_count
-      ) %>%
-      slice(1) %>%
-      as.data.frame()
-  }
+  # This code is vectorized to be as fast as I can make it currently. Compared each token to the 
+  # nrc lexica. 
+  count_tweets <- wordsalad %>%
+    mutate(
+      'anger_count' = word %in% nrc[nrc$sentiment %in% 'anger', 'word'],
+      'anticipation_count' = word %in% nrc[nrc$sentiment %in% 'anticipation', 'word'],
+      'disgust_count' = word %in% nrc[nrc$sentiment %in% 'disgust', 'word'],
+      'fear_count' = word %in% nrc[nrc$sentiment %in% 'fear', 'word'],
+      'joy_count' = word %in% nrc[nrc$sentiment %in% 'joy', 'word'],
+      'negative_count' = word %in% nrc[nrc$sentiment %in% 'negative', 'word'],
+      'positive_count' = word %in% nrc[nrc$sentiment %in% 'positive', 'word'],
+      'sadness_count' = word %in% nrc[nrc$sentiment %in% 'sadness', 'word'],
+      'surprise_count' = word %in% nrc[nrc$sentiment %in% 'surprise', 'word'],
+      'trust_count' = word %in% nrc[nrc$sentiment %in% 'trust', 'word']) %>%
+    select(-word) %>%
+    group_by(status_id) %>%
+    summarize_all(sum)
   
-  tweets
+  final <- join(tweets, count_tweets)
+  final
 }
 
 #' Create Closed Network
 #'
 #' This function takes a vector of users (e.g. of the form c('seanchrismurphy', 'LydiaHayward2', 'katiehgreenaway')) and returns
-#' a data frame of followership links between those users. By default, it will ignore users with more than 5000 followers, to save
-#' on computing time and remove celebrities. However this behavior can be changed with max.followers.
-#' @param usernames A vector of usernames.
-#' @param max.followers Defaults to 5000, anyone with more followers than this will be ignored.
-#' @param retryOnRateLimit is set to 120 by default, meaning the function will run until completion. 
+#' a data frame of friendship links between those users. By default, it will ignore users with more than 5000 friends, to save
+#' on computing time and remove celebrities. Also, at present, it will only retrieve the first 5000 friends from each user because
+#' paging has not been implemented. Note that because all friendship ties (users following other users) in a network are captured,
+#' this is the same as capturing all followership ties, but far more computationally efficient for people with many followers.
+#' Will pause when the rate limit is exceeded, so can be run on a large set of users, but will take about one minute per user.
+#' If running on larger networks like this, you may wish to alter the code to save at intervals. 
+#' 
+#' Note that this function returns an adjacency matrix, which has to be converted to an actual network with the network function
+#' from the network package, or the graph_from_adjacency_matrix in igraph (though the data.frame will need to be converted to
+#' a matrix first)
+#' 
+#' @param input A vector of usernames or userids.
+#' @param limit Defaults to 5000, anyone with more followers than this will be ignored.
 #' @export
 
-create_closed_network <- function(usernames, max.followers = 5000, retryOnRateLimit = 120) {
-  userlist <- lookupUsers(usernames, retryOnRateLimit = retryOnRateLimit)
+create_closed_network <- function(input, limit = 5000) {
   
-  userlist <- userlist[((sapply(userlist, followersCount)) <= max.followers)]
-  ### If we're looking within a closed network, we only need to capture followers, because friends is simply the inverse of followers. 
-  ### In this code we essentially get a list of each user's followers, then search it and save the people who are in our initial list
-  connections <- list()
-  for (user in userlist) {
-    while (any(getCurRateLimitInfo()$remaining %in% 0)) {
-      Sys.sleep(60)
-    }
-    x <- user$getFollowers(retryOnRateLimit = retryOnRateLimit)
-    x <- sapply(unlist(x), function(y) y$screenName)
-    x <- as.character(x[x %in% usernames])
-    connections[[user$screenName]] <- x
+  store <- list()
+  people <- lookup_users(input)
+  
+  if (!is.null(limit)) {
+    people <- people[people$friends_count <= limit, ]
   }
   
-  # Now we turn that data into social network format using the igraph package in R which handles networks. 
-  links <- data.frame('source' = as.character(unlist(connections)),'target' = rep(names(connections), sapply(connections, length)), stringsAsFactors = FALSE)
-  links
+  for (i in 1:nrow(people)) {
+    
+    # This controls the rate limit
+    control_rate_limit('friends/ids')
+    store[[i]] <- get_friends(people[i, 'user_id'])$user_id
+  }
+  
+  net.mat <- do.call('rbind', lapply(store, function(x) people$user_id %in% x))
+  row.names(net.mat) <- people$screen_name; colnames(net.mat) <- people$screen_name
+  return(net.mat)
 }
+
 
 #' Clean Tweets
 #'
-#' This function takes a dataframe of raw tweets and performs some basic cleaning and tokenization. It returns a 
-#' dataframe with each tweet broken into individual word tokens, with one row for each word. Can then be used as 
-#' input to dictionary_count. 
+#' This function takes a dataframe of raw tweets and performs some basic cleaning and tokenization. It returns 
+#' the input data.frame, now with a new column for clean_text, the tweets after cleaning. It also returns
+#' the emojis in the tweets in their own column, and a count of emojis used in each tweet, for convenience.
 #' 
-#' @param tweets An input dataset of raw tweets, usually from searchTwitter()
-#' @param reg This is the rule by which tweets are split into tokens. It uses regex (regular expressions), and by default
-#' removes all punctuation except #, @ and ', then splits words wherever there is white space between them. Adding symbols
-#' to the first part of the expression will mean they are retained (for instance [^A-Za-z\\!\\d#@'] will keep exclamation 
-#' points)
-#' @param hashtags is set to 'trim' by default, which keeps them but removes the #. If set to 'remove', they will be removed
-#' entirely and so not affect the word count. If set to 'keep', they will be kept but not trimmed and so will not match
-#' most dictionaries, unless the dictionary software removes punctuation by default. 
-#' @param remove.mentions is set to TRUE by default, removing mentions (e.g. @seanchrismurphy). It can be set to FALSE to 
-#' retain the mentions.
+#' @param tweets An input dataset of raw tweets, usually from search_tweets()
+#' @param remove.mentions TRUE by default, controls whether to remove mentions. Can be set to FALSE to keep them.
+#' @param remove.hashtags TRUE by default, controls whether to remove hashtags Can be set to FALSE to keep them.
+#' @param remove.urls TRUE by default, controls whether to remove urls. Can be set to FALSE to keep them.
+#' @param remove.retweets TRUE by default, controls whether to remove retweets. Can be set to FALSE to keep them.
+#' @param remove.numbers FALSE by default, controls whether to remove numbers Can be set to TRUE to remove them.
+#' @param lowercase TRUE by default, controls whether to convert all characters to lowercase. Can be set to FALSE to retain case.
 #' @export
-clean_tweets <- function(tweets, reg = "([^A-Za-z\\d#@']|'(?![A-Za-z\\d#@]))", hashtags = 'trim', remove.mentions = TRUE) {
-  library(dplyr); library(tidytext); library(stringr)
-  if (!hashtags %in% c('trim', 'keep', 'remove')) {
-    stop("hashtags must be set to 'trim', 'remove', or 'keep'")
+
+clean_tweets <- function(tweet_data, remove.mentions = TRUE, remove.hashtags = TRUE, 
+                         remove.urls = TRUE, remove.retweets = TRUE, remove.numbers = FALSE,
+                         lowercase = TRUE) {
+  
+  if (remove.retweets) {
+    tweet_data <- tweet_data[tweet_data$is_retweet == 0, ]
+    tweet_data <- tweet_data[!grepl('^[Rr][Tt] ', tweet_data$text), ]
   }
   
-  if (!is.logical(remove.mentions)) {
-    stop("remove.mentions must be either TRUE or FALSE")
+  tweet_data <- tweet_data[!duplicated(tweet_data$status_id),]
+  
+  # This line replaces some common characters on Twitter that are encoded in UTF-8 with their
+  # ASCII equivalents, because otherwise they'll be removed when emojis are extracted. 
+  
+  pattern <- c('é', '…', '—', "[‘“’”´`]", '～', '＞', '+', '&amp;')
+  replacement <- c('e', '...', '-', "'", '~', '＞', '+', 'and')
+  
+  clean_tweets <- tweet_data[, c('status_id', 'text')]
+  
+  clean_tweets$text <- mgsub(pattern = pattern, replacement = replacement, clean_tweets$text)
+  
+  # Remove html symbols
+  clean_tweets$text <- str_replace_all(clean_tweets$text, '&[a-z]{1,6};', '')
+  
+  # We remove the emojis from the text, but not before extracting them and a count, which may be useful
+  # to researchers wishing to recode them.
+  emojis <- str_extract_all(clean_tweets$text,'[^[:alnum:][:punct:][:space:][\\$\\~\\=\\-\\|\\*]]+')
+  clean_tweets$emojis <- sapply(emojis, function(x) paste(x, collapse = ','))
+  clean_tweets$emoji_count <- sapply(emojis, function(x) sum(str_length(x)))
+  rm(emojis)
+  
+  clean_tweets$text <- iconv(clean_tweets$text , 'UTF-8', 'ASCII', '')
+  # remove links from text
+  if (remove.urls) {
+    clean_tweets$text <- str_replace_all(clean_tweets$text, 'https://t.co/[a-zA-Z0-9]*', '')
+  }
+  # get rid of extra spaces and whitespace on the end of tweets
+  clean_tweets$text <- str_replace_all(clean_tweets$text, '( )+', ' ')
+  clean_tweets$text <- str_trim(clean_tweets$text)
+  
+  # We either remove tokens that are only numbers, or not, depending on the options.
+  if (!remove.numbers) {
+    wordsalad <- clean_tweets %>%
+      unnest_tokens(word, text, token = 'regex', pattern = "([^A-Za-z\\d#@']|'(?![A-Za-z\\d#@]))") %>%
+      filter(str_detect(word, '[a-zA-Z0-9]')) 
   }
   
-  if (hashtags %in% c('keep', 'remove')) {
-  keep.hashtags <- (hashtags %in% 'keep')
-  tweet_words <- tweets %>%
-    filter(!str_detect(text, '^"')) %>%
-    filter(!str_detect(text, '^(RT|rt)')) %>%
-    # It's questionable whether we should remove these - perhaps posting your Twitter stats is psychologically meaningful, or posting a lot of 
-    # youtube links. However, these tweets don't represent words from the user, they're similar to retweets in that sense - they may show some
-    # value, but probably add a lot of noise. So I remove them to clean things up a bit. Probably less of an issue when searching for hashtags, 
-    # since these sort of tweets won't show up. 
-    filter(!str_detect(text, '^Today stats')) %>%
-    filter(!str_detect(text, 'new follower(s)*')) %>%
-    filter(!str_detect(text, '@[yY]ou[Tt]ube')) %>%
-    mutate(clean_text = str_replace_all(text, "http(s)*://t.co/[A-Za-z\\d]+|&amp;", "")) %>%
-    unnest_tokens(word, clean_text, token = "regex", pattern = reg, to_lower = TRUE) %>%
-    # We're choosing not to remove stopwords because in LIWC they won't be counted in dictionaries most likely, and in bottom up approaches
-    # they may help distinguish groups or individual differences. It's possible that for e.g. a topic analysis where you wanted to find the
-    # common topics in a group of tweets you might want to remove the stopwords to get a better characterization.  
-    filter((!str_detect(word, "^#") | keep.hashtags),
-           (!str_detect(word, "^@") | !remove.mentions),
-           str_detect(word, "[a-z]")) %>%
+  if (remove.numbers) {
+    wordsalad <- clean_tweets %>%
+      unnest_tokens(word, text, token = 'regex', pattern = "([^A-Za-z\\d#@']|'(?![A-Za-z\\d#@]))") %>%
+      filter(str_detect(word, '[a-zA-Z]')) 
+  }
+  
+  # Turn all the text into lower case
+  if (lowercase) {
+    wordsalad$word <- tolower(wordsalad$word)
+  }
+  
+  # remove hashtags and mentions
+  if (remove.hashtags) {
+    wordsalad <- wordsalad[!grepl('#', wordsalad$word), ]
+  }
+  if (remove.mentions) {
+    wordsalad <- wordsalad[!grepl('@', wordsalad$word), ]
+  }
+  
+  # Now the tokens are pasted back together to create the clean text. This is now ready to be analyzed
+  # in LIWC or similar word counting software.
+  clean_text <- wordsalad %>% 
+    group_by(status_id) %>%
+    dplyr::summarize(clean_text = paste(word, collapse = ' '), word_count = n()) %>%
     as.data.frame()
-  }
   
-  if (hashtags %in% 'trim') {
-    tweet_words <- tweets %>%
-      filter(!str_detect(text, '^"')) %>%
-      filter(!str_detect(text, '^(RT|rt)')) %>%
-      # It's questionable whether we should remove these - perhaps posting your Twitter stats is psychologically meaningful, or posting a lot of 
-      # youtube links. However, these tweets don't represent words from the user, they're similar to retweets in that sense - they may show some
-      # value, but probably add a lot of noise. So I remove them to clean things up a bit. Probably less of an issue when searching for hashtags, 
-      # since these sort of tweets won't show up. 
-      filter(!str_detect(text, '^Today stats')) %>%
-      filter(!str_detect(text, 'new follower(s)*')) %>%
-      filter(!str_detect(text, '@[yY]ou[Tt]ube')) %>%
-      mutate(clean_text = str_replace_all(text, "http(s)*://t.co/[A-Za-z\\d]+|&amp;", "")) %>%
-      unnest_tokens(word, clean_text, token = "regex", pattern = reg, to_lower = TRUE) %>%
-      mutate(word = str_replace(word, '^#', '')) %>%
-      # We're choosing not to remove stopwords because in LIWC they won't be counted in dictionaries most likely, and in bottom up approaches
-      # they may help distinguish groups or individual differences. It's possible that for e.g. a topic analysis where you wanted to find the
-      # common topics in a group of tweets you might want to remove the stopwords to get a better characterization.  
-      filter((!str_detect(word, "^@") | !remove.mentions),
-             str_detect(word, "[a-z]")) %>%
-      as.data.frame()
-  }
+  # The clean text is joined with the emoji counts
+  clean_text <- join(clean_text, clean_tweets[, c('status_id', 'emojis', 'emoji_count')], by = 'status_id')
   
-  tweet_words
+  # This joins together tweets, and will implicitly remove tweets that contain zero valid tokens at this
+  # point, which is worth noting. This behavior could be changed by setting the join type to 'left'.
+  final <- join(tweet_data, clean_text, type = 'inner', by = 'status_id')
+  final
 }
+
+
+
 
 #' Collects timelines of followers
 #'
@@ -237,6 +245,7 @@ clean_tweets <- function(tweets, reg = "([^A-Za-z\\d#@']|'(?![A-Za-z\\d#@]))", h
 #' followers, returning a dataset with up to nstatus tweets for each of nfollowers, for ever user entered. For instance if you input five
 #' users with nfollowers = 100 and ntatus = 200, you would retrieve up to 100, 000 tweets (though usually substantially less, do to sparse
 #' timelines)
+#' 
 #' @param users The list of users whose followers you wish to collect.
 #' @param nfollowers Defaults to 100. The maximum number of followers you wish to collect for each user.
 #' @param nstatus Defaults to 200. The maximum number of statuses you wish to collect for each follower.
@@ -244,56 +253,94 @@ clean_tweets <- function(tweets, reg = "([^A-Za-z\\d#@']|'(?![A-Za-z\\d#@]))", h
 #' @param language Defaults to 'en'. A filter to only collect users of the specified language. 
 #' @export
 
-collect_follower_timelines <- function(users, nfollowers = 100, nstatus = 200, minstatus = 20, language = 'en') {
-  followers <- sapply(users, function(x) x$getFollowers(n = nfollowers, retryOnRateLimit = 80))
-  followers <- unlist(followers)
-  # This line removes followers who are protected, because the API will fail when attempting to retrieve their
-  # timelines
-  followers <- followers[!sapply(followers, function(x) x$protected)]
-  followers <- followers[sapply(followers, function(x) x$statusesCount) >= minstatus]
-  followers <- followers[sapply(followers, function(x) x$lang) %in% language]
+get_follower_timelines <- function (users, nfollowers = 90, nstatus = 200, minstatus = 20, 
+                                    language = "en") 
+{
+  followers <- list()
+  for (i in 1:length(users)) {
+    
+    control_rate_limit('followers/list', limit = ceiling(min(3*nfollowers, 10000)/5000))
+    
+    # We get 3 times nfollowers, because we'll lose a lot to having too few statuses. 
+    followers[[i]] <- get_followers(users[i], n = min(3*nfollowers, 10000))
+  }
   
+  # Here we lookup the followers of each user.
+  followers_user <- list()
+  for (i in 1:length(followers)) {
+    followers_user[[i]] <- lookup_users(followers[[i]])
+  }
+  
+  # Remove users who are protected (private), don't have specified language, or don't have enough statuses.
+  followers_user <- lapply(followers_user, function(x) x[!x$protected,])
+  followers_user <- lapply(followers_user, function(x) x[x$lang %in% language,])
+  followers_user <- lapply(followers_user, function(x) x[x$statuses_count > minstatus,])
+  
+  # This is the list of valid followers. Getting rid of duplicates
+  follower_final <- unique(unlist(sapply(followers_user, function(x) x$screen_name)))
+  
+  # We sample from the valid followers up to our nfollowers, or the total if we've got too few left. Note that
+  # this doesn'tr track which of the input people each individual is a follower of. 
+  follower_final <- follower_final[sample(1:length(follower_final), size = min(nfollowers*length(users), length(follower_final)))]
   timelines <- list()
   
-  # This loop runs through the followers in our shuffled lists, and retrieves their timelines.
-  for (i in 1:length(followers)) {
-    # This line retrieves the most recent 200 tweets from one followers timeline
-    timelines[[i]] <- userTimeline(followers[i], n = nstatus, retryOnRateLimit = 20)
-    # This line tells the loop to wait when the API has rate limited us
-    while (any(getCurRateLimitInfo()$remaining %in% 0)) {
-      Sys.sleep (60)
+  each <- ceiling(nstatus/200)
+  k <- 0
+
+  for (i in 1:length(follower_final)) {
+    
+    # Looping through and getting timelines for each individual. Multiple levels of failsafe rate limiting,
+    # just in case. This will take a while because of rate limits to the rate limit checking itself, 
+    # unfortunately, but that can't be avoided at present. 
+    
+    timelines[[i]] <- tryCatch(get_timeline(follower_final[i], n = nstatus), error = function(e) {
+      print('Sleeping for 5 minutes')
+      Sys.sleep(300)
+    })
+    k <- k + each
+    
+    if (k > 50) {
+      control_rate_limit('application/rate_status', limit = 55, token = get_tokens[1])
+      k <- 0
     }
   }
   
-  timelines <- timelines[sapply(timelines, length) >= minstatus]
-  timelinesdf <- lapply(timelines, twListToDF)
-  timelinesdf <- do.call('rbind', timelinesdf)
+  # A finaly check to make sure we got enough statuses from each individual (a lot might be retweets)
+  timelines <- timelines[sapply(timelines, nrow) >= minstatus]
+  timelinesdf <- do.call("rbind", timelines)
+  # Return a data frame that has all the collected tweets from all users. This can now be input to dictionary
+  # count and then aggregated to the person level. 
   timelinesdf
 }
 
 #' Creates a mentions network
 #'
-#' This function takes a dataset of tweets (not already cleaned with clean_tweets) and returns a dataset of links between
-#' users based on whether one has mentioned (e.g. @seanchrismurphy) the other. This dataset can then be used as input to 
-#' igraph using graph_from_edgelist.
+#' This function takes a dataset of tweets and returns a dataset of links between users based on whether one 
+#' has mentioned (e.g. @seanchrismurphy) the other. This dataset can then be used as input to igraph using 
+#' graph_from_edgelist, or to the network package using the network function.
 #' @param tweets This is the input data.
-#' @param closed Defaults to FALSE. If set to TRUE, will remove mentions of anyone who hasn't tweeted within the input dataset, 
+#' @param closed.network Defaults to FALSE. If set to TRUE, will remove mentions of anyone who hasn't tweeted within the input dataset, 
 #' effectively making it a closed network (this will remove mentions of news sources in most cases, for instance). 
 #' @export
 
-create_mentions_network <- function(tweets, closed = FALSE) {
-  mentions <- clean_tweets(tweets, remove.mentions = FALSE)
-  mentions <- mentions[str_detect(mentions$word, '^@'), c('screenName', 'word')]
-  mentions$word <- gsub('^@', '', mentions$word)
+create_mentions_network <- function(tweets, closed.network = FALSE) {
+  mentions <- tweets[, c('screen_name', 'mentions_screen_name')]
   
-  if (closed == TRUE) {
-    mentions <- mentions[mentions$word %in% mentions$screenName, ]
+  # First, extracting the mentions that come coded from rtweet in their own column.
+  mentions <- str_split(tweets$mentions_screen_name, ',')
+  names(mentions) <- tweets$screen_name
+  mentions <- mentions[sapply(mentions, function(x) x[1] != 'NA')]
+  
+  # Unlist the mentions, being careful to get the replications, from some users mentioning multiple people,
+  # correct
+  mentions.net <- data.frame('source' = rep(names(mentions), times = sapply(mentions, length)), 'target' = as.character(unlist(mentions)), 
+                             stringsAsFactors = FALSE)
+  if (closed.network) {
+    mentions.net <- mentions.net[mentions.net$target %in% mentions.net$source, ]
   }
-  
-  # Now we turn that data into social network format using the igraph package in R which handles networks. 
-  links <- mentions
-  colnames(links) <- c('source', 'target')
-  links
+  # Remove self-references.
+  mentions.net <- mentions.net[mentions.net$target != mentions.net$source, ]
+  return(mentions.net)
 }
 
 #' Get timelines
@@ -327,36 +374,128 @@ get_timelines <- function(users, nstatus = 200, includeRts = FALSE) {
 }
 
 
-#' Get Followers
-#'
-#' This is a convenience function to get user followers a little more cleanly
-#' than the default in the twitteR package. It takes a list of user objects
-#' returned by lookupUsers, and returns a dataset of user information for the
-#' followers of those users. It attached a 'following' variable to the dataset
-#' to track who is following who. 
+### Now a series of utility functions for checking frequent tokens in tweet data ###
 
-get_Followers <- function(users) {
-  out <- list()
-  for (i in 1:length(users)) {
-    out[[i]] <- twListToDF(users[[i]]$getFollowers())
-    out[[i]]$following <- users[[i]]$screenName
+
+#' Utility function to tokenize tweets without removing anything. Used by the most.frequent.x functions.
+
+tokenize_tweets <- function(tweet_data, remove.words = FALSE, remove.hashtags = FALSE, remove.mentions = FALSE) {
+  require(plyr);require(dplyr);require(qdap); require(stringr);require(tidytext); require(tokenizers)
+  tweet_data <- tweet_data[tweet_data$is_retweet == 0, ]
+  tweet_data <- tweet_data[!grepl('^[Rr][Tt] ', tweet_data$text), ]
+  tweet_data <- tweet_data[!duplicated(tweet_data$status_id),]
+  
+  pattern <- c('é', '…', '—', "[‘“’”´`]", '～', '＞', '+', '&amp;')
+  replacement <- c('e', '...', '-', "'", '~', '＞', '+', 'and')
+  
+  cleaned_tweets <- tweet_data[, c('status_id', 'text')]
+  cleaned_tweets$text <- str_replace_all(cleaned_tweets$text, 'https://t.co/[a-zA-Z0-9]*', '')
+  cleaned_tweets$text <- mgsub(pattern = pattern, replacement = replacement, cleaned_tweets$text)
+  cleaned_tweets$text <- str_replace_all(cleaned_tweets$text, '&[a-z]{1,6};', '')
+  cleaned_tweets$text <- iconv(cleaned_tweets$text , 'UTF-8', 'ASCII', '')
+  cleaned_tweets$text <- str_replace_all(cleaned_tweets$text, '( )+', ' ')
+  cleaned_tweets$text <- str_trim(cleaned_tweets$text)
+  
+  wordsalad <- cleaned_tweets %>%
+    unnest_tokens(word, text, token = 'regex', pattern = "([^A-Za-z\\d#@']|'(?![A-Za-z\\d#@]))") %>%
+    filter(str_detect(word, '[a-zA-Z0-9]'))
+  wordsalad$word <- tolower(wordsalad$word)
+  
+  if (remove.words) {
+    wordsalad <- wordsalad[grepl('@|#', wordsalad$word), ]
   }
-  do.call('rbind', out)
+  if (remove.hashtags) {
+    wordsalad <- wordsalad[!grepl('#', wordsalad$word), ]
+  }
+  if (remove.mentions) {
+    wordsalad <- wordsalad[!grepl('@', wordsalad$word), ]
+  }
+  
+  return(wordsalad)
 }
 
-#' Get Friends
-#'
-#' This is a convenience function to get user friends a little more cleanly
-#' than the default in the twitteR package. It takes a list of user objects
-#' returned by lookupUsers, and returns a dataset of user information for the
-#' friends of those users. It attached a 'followed_by' variable to the dataset
-#' to track who is followed by which users.
+# A series of convenience functions to help people visualise the most common words, hashtags, mentions, 
+# etc in a set of tweets. 
 
-get_Friends <- function(users) {
-  out <- list()
-  for (i in 1:length(users)) {
-    out[[i]] <- twListToDF(users[[i]]$getFriends())
-    out[[i]]$followed_by <- users[[i]]$screenName
-  }
-  do.call('rbind', out)
+
+
+#' See most frequent tokens in the data
+#'
+#' This function takes a tweet dataset and returns a data.frame showing the most frequent tokens in descending
+#' order. Useful when checking to see if current events or spam are disturbing the data. 
+#' 
+#' @param text is the input data.
+#' @export
+
+most.frequent.tokens <- function(text) {
+  require(plyr);require(dplyr)
+  text <- tokenize_tweets(text)
+  counts <- text %>% 
+    group_by(word) %>%
+    summarize(count = n()) %>%
+    arrange(desc(count)) %>%
+    as.data.frame()
+  counts$perc <- counts$count/sum(counts$count)
+  counts
+}
+
+#' See most frequent words in the data
+#'
+#' This function takes a tweet dataset and returns a data.frame showing the most frequent word tokens (i.e.
+#' # not hashtags or mentions) in descending order. Useful when checking to see if current events or spam are 
+#' disturbing the data. 
+#' 
+#' @param text is the input data.
+#' @export
+
+most.frequent.words <- function(text) {
+  require(plyr);require(dplyr)
+  text <- tokenize_tweets(text, remove.hashtags = TRUE, remove.mentions = TRUE)
+  counts <- text %>% 
+    group_by(word) %>%
+    summarize(count = n()) %>%
+    arrange(desc(count)) %>%
+    as.data.frame()
+  counts$perc <- counts$count/sum(counts$count)
+  counts
+}
+
+#' See most frequent hashtags in the data
+#'
+#' This function takes a tweet dataset and returns a data.frame showing the most frequent hashtags
+#' in descending order. Useful when checking to see if current events or spam are disturbing the data.  
+#' 
+#' @param text is the input data.
+#' @export
+
+most.frequent.hashtags <- function(text) {
+  require(plyr);require(dplyr)
+  text <- tokenize_tweets(text, remove.words = TRUE, remove.mentions = TRUE)
+  counts <- text %>% 
+    group_by(word) %>%
+    summarize(count = n()) %>%
+    arrange(desc(count)) %>%
+    as.data.frame()
+  counts$perc <- counts$count/sum(counts$count)
+  counts
+}
+
+#' See most frequent mentions in the data
+#'
+#' This function takes a tweet dataset and returns a data.frame showing the most frequent mentions in descending
+#' order. Useful when checking to see if current events or spam are disturbing the data. 
+#' 
+#' @param text is the input data.
+#' @export
+
+most.frequent.mentions <- function(text) {
+  require(plyr);require(dplyr)
+  text <- tokenize_tweets(text, remove.words = TRUE, remove.hashtags = TRUE)
+  counts <- text %>% 
+    group_by(word) %>%
+    summarize(count = n()) %>%
+    arrange(desc(count)) %>%
+    as.data.frame()
+  counts$perc <- counts$count/sum(counts$count)
+  counts
 }
