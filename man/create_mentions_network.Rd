@@ -4,17 +4,17 @@
 \alias{create_mentions_network}
 \title{Creates a mentions network}
 \usage{
-create_mentions_network(tweets, closed = FALSE)
+create_mentions_network(tweets, closed.network = FALSE)
 }
 \arguments{
 \item{tweets}{This is the input data.}
 
-\item{closed}{Defaults to FALSE. If set to TRUE, will remove mentions of anyone who hasn't tweeted within the input dataset, 
+\item{closed.network}{Defaults to FALSE. If set to TRUE, will remove mentions of anyone who hasn't tweeted within the input dataset, 
 effectively making it a closed network (this will remove mentions of news sources in most cases, for instance).}
 }
 \description{
-This function takes a dataset of tweets (not already cleaned with clean_tweets) and returns a dataset of links between
-users based on whether one has mentioned (e.g. @seanchrismurphy) the other. This dataset can then be used as input to 
-igraph using graph_from_edgelist.
+This function takes a dataset of tweets and returns a dataset of links between users based on whether one 
+has mentioned (e.g. @seanchrismurphy) the other. This dataset can then be used as input to igraph using 
+graph_from_edgelist, or to the network package using the network function.
 }
 

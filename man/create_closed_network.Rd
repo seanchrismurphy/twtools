@@ -4,19 +4,25 @@
 \alias{create_closed_network}
 \title{Create Closed Network}
 \usage{
-create_closed_network(usernames, max.followers = 5000,
-  retryOnRateLimit = 120)
+create_closed_network(input, limit = 5000)
 }
 \arguments{
-\item{usernames}{A vector of usernames.}
+\item{input}{A vector of usernames or userids.}
 
-\item{max.followers}{Defaults to 5000, anyone with more followers than this will be ignored.}
-
-\item{retryOnRateLimit}{is set to 120 by default, meaning the function will run until completion.}
+\item{limit}{Defaults to 5000, anyone with more followers than this will be ignored.}
 }
 \description{
 This function takes a vector of users (e.g. of the form c('seanchrismurphy', 'LydiaHayward2', 'katiehgreenaway')) and returns
-a data frame of followership links between those users. By default, it will ignore users with more than 5000 followers, to save
-on computing time and remove celebrities. However this behavior can be changed with max.followers.
+a data frame of friendship links between those users. By default, it will ignore users with more than 5000 friends, to save
+on computing time and remove celebrities. Also, at present, it will only retrieve the first 5000 friends from each user because
+paging has not been implemented. Note that because all friendship ties (users following other users) in a network are captured,
+this is the same as capturing all followership ties, but far more computationally efficient for people with many followers.
+Will pause when the rate limit is exceeded, so can be run on a large set of users, but will take about one minute per user.
+If running on larger networks like this, you may wish to alter the code to save at intervals.
+}
+\details{
+Note that this function returns an adjacency matrix, which has to be converted to an actual network with the network function
+from the network package, or the graph_from_adjacency_matrix in igraph (though the data.frame will need to be converted to
+a matrix first)
 }
 

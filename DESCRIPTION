@@ -1,10 +1,10 @@
 Package: twtools
 Title:  Utility functions for dealing with tweet data from Twitter
-Version: 0.1
+Version: 0.2
 Author: Sean Murphy <seanchrismurphy@gmail.com>
 Description: twtools is built to accompany the paper "A hands-on guide to using Twitter for psychological research.” It implements several utility functions that make the process of cleaning and using tweet data easier. 
 Depends:
-    R (>= 3.3.1), twitteR, tidytext, tokenizers, dplyr, stringr
+    R (>= 3.3.1), rtweet, plyr, dplyr, tidytext, tokenizers, qdap, stringr
 License: What license is it under?
 Encoding: UTF-8
 LazyData: true

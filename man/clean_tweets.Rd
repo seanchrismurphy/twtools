@@ -4,27 +4,28 @@
 \alias{clean_tweets}
 \title{Clean Tweets}
 \usage{
-clean_tweets(tweets, reg = "([^A-Za-z\\\\d#@']|'(?![A-Za-z\\\\d#@]))",
-  hashtags = "trim", remove.mentions = TRUE)
+clean_tweets(tweet_data, remove.mentions = TRUE, remove.hashtags = TRUE,
+  remove.urls = TRUE, remove.retweets = TRUE, remove.numbers = FALSE,
+  lowercase = TRUE)
 }
 \arguments{
-\item{tweets}{An input dataset of raw tweets, usually from searchTwitter()}
+\item{remove.mentions}{TRUE by default, controls whether to remove mentions. Can be set to FALSE to keep them.}
 
-\item{reg}{This is the rule by which tweets are split into tokens. It uses regex (regular expressions), and by default
-removes all punctuation except #, @ and ', then splits words wherever there is white space between them. Adding symbols
-to the first part of the expression will mean they are retained (for instance [^A-Za-z\\!\\d#@'] will keep exclamation 
-points)}
+\item{remove.hashtags}{TRUE by default, controls whether to remove hashtags Can be set to FALSE to keep them.}
 
-\item{hashtags}{is set to 'trim' by default, which keeps them but removes the #. If set to 'remove', they will be removed
-entirely and so not affect the word count. If set to 'keep', they will be kept but not trimmed and so will not match
-most dictionaries, unless the dictionary software removes punctuation by default.}
+\item{remove.urls}{TRUE by default, controls whether to remove urls. Can be set to FALSE to keep them.}
 
-\item{remove.mentions}{is set to TRUE by default, removing mentions (e.g. @seanchrismurphy). It can be set to FALSE to 
-retain the mentions.}
+\item{remove.retweets}{TRUE by default, controls whether to remove retweets. Can be set to FALSE to keep them.}
+
+\item{remove.numbers}{FALSE by default, controls whether to remove numbers Can be set to TRUE to remove them.}
+
+\item{lowercase}{TRUE by default, controls whether to convert all characters to lowercase. Can be set to FALSE to retain case.}
+
+\item{tweets}{An input dataset of raw tweets, usually from search_tweets()}
 }
 \description{
-This function takes a dataframe of raw tweets and performs some basic cleaning and tokenization. It returns a 
-dataframe with each tweet broken into individual word tokens, with one row for each word. Can then be used as 
-input to dictionary_count.
+This function takes a dataframe of raw tweets and performs some basic cleaning and tokenization. It returns 
+the input data.frame, now with a new column for clean_text, the tweets after cleaning. It also returns
+the emojis in the tweets in their own column, and a count of emojis used in each tweet, for convenience.
 }
 

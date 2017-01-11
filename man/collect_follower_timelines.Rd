@@ -4,7 +4,7 @@
 \alias{collect_follower_timelines}
 \title{Collects timelines of followers}
 \usage{
-collect_follower_timelines(users, nfollowers = 100, nstatus = 200,
+collect_follower_timelines(users, nfollowers = 90, nstatus = 200,
   minstatus = 20, language = "en")
 }
 \arguments{

@@ -6,6 +6,10 @@
 #' 'application/ratestatus' to only get a specific set of limits. 
 #' @param token This allows you to specify which token to check on, if you only want to check on one. Default is
 #' to check all
+#' @import rtweet 
+#' @import tokenizers
+#' @import tidytext
+#' @import stringr
 
 tot_limits <- function(query = NULL, token = get_tokens()) {
   
@@ -35,6 +39,7 @@ tot_limits <- function(query = NULL, token = get_tokens()) {
 #' @param token This allows you to specify which token to check on, if you only want to check on one. Default is
 #' to check all
 #' @export
+
 control_rate_limit <- function(query = NULL, limit = NULL, token = get_tokens()) {
   # Basically, if we just give the query, it pauses if we have zero requests left. If we add a limit, 
   # it pauses if we have less than that limit remaining. 
@@ -95,7 +100,7 @@ dictionary_count <- function(tweets, clean = TRUE) {
     group_by(status_id) %>%
     summarize_all(sum)
   
-  final <- join(tweets, count_tweets)
+  final <- join(tweets, count_tweets, by = 'status_id')
   final
 }
 
@@ -157,7 +162,7 @@ create_closed_network <- function(input, limit = 5000) {
 clean_tweets <- function(tweet_data, remove.mentions = TRUE, remove.hashtags = TRUE, 
                          remove.urls = TRUE, remove.retweets = TRUE, remove.numbers = FALSE,
                          lowercase = TRUE) {
-  
+  require(stringr); require(tidytext); require(tokenizers); require(plyr); require(dplyr)
   if (remove.retweets) {
     tweet_data <- tweet_data[tweet_data$is_retweet == 0, ]
     tweet_data <- tweet_data[!grepl('^[Rr][Tt] ', tweet_data$text), ]
@@ -173,7 +178,7 @@ clean_tweets <- function(tweet_data, remove.mentions = TRUE, remove.hashtags = T
   
   clean_tweets <- tweet_data[, c('status_id', 'text')]
   
-  clean_tweets$text <- mgsub(pattern = pattern, replacement = replacement, clean_tweets$text)
+  clean_tweets$text <- qdap::mgsub(pattern = pattern, replacement = replacement, clean_tweets$text)
   
   # Remove html symbols
   clean_tweets$text <- str_replace_all(clean_tweets$text, '&[a-z]{1,6};', '')
@@ -253,7 +258,7 @@ clean_tweets <- function(tweet_data, remove.mentions = TRUE, remove.hashtags = T
 #' @param language Defaults to 'en'. A filter to only collect users of the specified language. 
 #' @export
 
-get_follower_timelines <- function (users, nfollowers = 90, nstatus = 200, minstatus = 20, 
+collect_follower_timelines <- function (users, nfollowers = 90, nstatus = 200, minstatus = 20, 
                                     language = "en") 
 {
   followers <- list()
@@ -286,6 +291,12 @@ get_follower_timelines <- function (users, nfollowers = 90, nstatus = 200, minst
   
   each <- ceiling(nstatus/200)
   k <- 0
+  
+  tryCatch(control_rate_limit('application/rate_status', limit = 55, token = get_tokens()[1]), 
+           error = function(e) {
+             print('Sleeping for 5 minutes')
+             Sys.sleep(300)
+           })
 
   for (i in 1:length(follower_final)) {
     
@@ -300,7 +311,7 @@ get_follower_timelines <- function (users, nfollowers = 90, nstatus = 200, minst
     k <- k + each
     
     if (k > 50) {
-      control_rate_limit('application/rate_status', limit = 55, token = get_tokens[1])
+      control_rate_limit('application/rate_status', limit = 55, token = get_tokens()[1])
       k <- 0
     }
   }
@@ -343,44 +354,13 @@ create_mentions_network <- function(tweets, closed.network = FALSE) {
   return(mentions.net)
 }
 
-#' Get timelines
-#'
-#' This function takes a vector of users (e.g. of the form c('seanchrismurphy', 'lydiahayward2', 'katiegreenaway')) and returns
-#' a data frame containing up to 3200 tweets of each of them, depending on nstatus.
-#' @param tweets This is the input data.
-#' @param nstatus Defaults to 200. This is the maximum number of tweets that will be returned for each user.
-#' @param includeRts Defaults to FALSE. This determines whether tweets that the user has retweeted will be returned. These tweets
-#' are included in nstatus no matter what (this is a limitation of the Twitter API), so when includeRts is set to FALSE, some number less
-#' than nstatus tweets will be returned for each user, depending on how many retweets they have made.
-#' @export
- 
-get_timelines <- function(users, nstatus = 200, includeRts = FALSE) {
-  
-  timelines <- list()
-  
-  # This loop runs through the users and retrieves their timelines.
-  for (i in 1:length(users)) {
-    # This line retrieves the most recent 200 tweets from one followers timeline
-    timelines[[i]] <- userTimeline(users[i], n = nstatus, includeRts = includeRts, retryOnRateLimit = 20)
-    # This line tells the loop to wait when the API has rate limited us
-    while (any(getCurRateLimitInfo()$remaining %in% 0)) {
-      Sys.sleep (60)
-    }
-  }
-  
-  timelinesdf <- lapply(timelines, twListToDF)
-  timelinesdf <- do.call('rbind', timelinesdf)
-  timelinesdf
-}
-
-
 ### Now a series of utility functions for checking frequent tokens in tweet data ###
 
 
 #' Utility function to tokenize tweets without removing anything. Used by the most.frequent.x functions.
 
 tokenize_tweets <- function(tweet_data, remove.words = FALSE, remove.hashtags = FALSE, remove.mentions = FALSE) {
-  require(plyr);require(dplyr);require(qdap); require(stringr);require(tidytext); require(tokenizers)
+  require(stringr); require(tidytext); require(tokenizers); require(plyr); require(dplyr)
   tweet_data <- tweet_data[tweet_data$is_retweet == 0, ]
   tweet_data <- tweet_data[!grepl('^[Rr][Tt] ', tweet_data$text), ]
   tweet_data <- tweet_data[!duplicated(tweet_data$status_id),]
@@ -390,7 +370,7 @@ tokenize_tweets <- function(tweet_data, remove.words = FALSE, remove.hashtags = 
   
   cleaned_tweets <- tweet_data[, c('status_id', 'text')]
   cleaned_tweets$text <- str_replace_all(cleaned_tweets$text, 'https://t.co/[a-zA-Z0-9]*', '')
-  cleaned_tweets$text <- mgsub(pattern = pattern, replacement = replacement, cleaned_tweets$text)
+  cleaned_tweets$text <- qdap::mgsub(pattern = pattern, replacement = replacement, cleaned_tweets$text)
   cleaned_tweets$text <- str_replace_all(cleaned_tweets$text, '&[a-z]{1,6};', '')
   cleaned_tweets$text <- iconv(cleaned_tweets$text , 'UTF-8', 'ASCII', '')
   cleaned_tweets$text <- str_replace_all(cleaned_tweets$text, '( )+', ' ')

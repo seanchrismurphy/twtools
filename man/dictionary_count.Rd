@@ -4,16 +4,22 @@
 \alias{dictionary_count}
 \title{Dictionary count}
 \usage{
-dictionary_count(tweets, group = "tweet")
+dictionary_count(tweets, clean = TRUE)
 }
 \arguments{
 \item{tweets}{This is the input data.}
 
-\item{group}{Defaults to 'tweet', can be set to 'group' when working with timelines. If set to 'tweet' when working with timelines, will return one row per tweet.}
+\item{clean}{Defaults to TRUE, which will clean the data with clean_tweets if there isn't a clean_text column.
+At present, the function will fail if this is set to FALSE and there is not a clean_tweets column in the data,
+so it's not much use, but left in for future adjustments.}
 }
 \description{
-This function takes a data frame of tweets that has been cleaned with clean_tweets, and compares each word to the NRC lexicon.
-Depending on the group parameter, it will then un-tokenize the tweets, giving either a clean tweet per row (if group is set
-# to "tweet") or a clean user timeline per row (if group is set to "user").
+This function takes a data frame of tweets, cleans them with clean_tweets if that has not already been done,
+and compares each word to the NRC lexicon. It returns counts and a word count, which can be used to turn the
+raw counts into percentages at your discretion (often a good idea). It's important to note that this function
+only does exact matching to the NRC lexica, which often do not include stems. So you may which to optionally
+stem the tokens in the clean_tweets column to get more accurate counts, though this is a decision about
+which there is some debate (e.g. see Kern et al, 2016). Counts are returned at the tweet level, and will
+need to be aggregated to the person level if you have multiple tweets from each individual.
 }
 
