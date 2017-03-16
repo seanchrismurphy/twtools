@@ -43,6 +43,10 @@ tot_limits <- function(query = NULL, token = get_tokens()) {
 control_rate_limit <- function(query = NULL, limit = NULL, token = get_tokens()) {
   # Basically, if we just give the query, it pauses if we have zero requests left. If we add a limit, 
   # it pauses if we have less than that limit remaining. 
+  while(is.null(tryCatch(tot_limits(query, token = token), error = function(e) {NULL}))) {
+    print('Rate limit check exhausted, sleeping 60 seconds')
+    Sys.sleep(60)
+  }
   limits <- tot_limits(query, token = token)
   if(limits[['remaining']] < max(1, limit)) {
     print(paste0('sleeping for ', as.numeric(limits[['reset']]), ' minutes.'))
@@ -292,22 +296,16 @@ collect_follower_timelines <- function (users, nfollowers = 90, nstatus = 200, m
   each <- ceiling(nstatus/200)
   k <- 0
   
-  tryCatch(control_rate_limit('application/rate_status', limit = 55, token = get_tokens()[1]), 
-           error = function(e) {
-             print('Sleeping for 5 minutes')
-             Sys.sleep(300)
-           })
+  control_rate_limit('application/rate_status', limit = 55, token = get_tokens()[1])
 
   for (i in 1:length(follower_final)) {
     
     # Looping through and getting timelines for each individual. Multiple levels of failsafe rate limiting,
     # just in case. This will take a while because of rate limits to the rate limit checking itself, 
     # unfortunately, but that can't be avoided at present. 
+      
+    timelines[[i]] <- get_timeline(follower_final[i], n = nstatus)
     
-    timelines[[i]] <- tryCatch(get_timeline(follower_final[i], n = nstatus), error = function(e) {
-      print('Sleeping for 5 minutes')
-      Sys.sleep(300)
-    })
     k <- k + each
     
     if (k > 50) {
