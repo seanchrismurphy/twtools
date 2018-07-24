@@ -45,14 +45,15 @@ tot_limits <- function(query = NULL, token = get_tokens()) {
 control_rate_limit <- function(query = NULL, limit = NULL, token = get_tokens()) {
   # Basically, if we just give the query, it pauses if we have zero requests left. If we add a limit,
   # it pauses if we have less than that limit remaining.
-  while(is.null(tryCatch(tot_limits(query, token = token), error = function(e) {NULL}))) {
+  while(is.null(tryCatch(twtools:::tot_limits(query, token = token), error = function(e) {NULL}))) {
     print('Rate limit check exhausted, sleeping 60 seconds')
     Sys.sleep(60)
   }
-  limits <- tot_limits(query, token = token)
+  limits <- twtools:::tot_limits(query, token = token)
   if(limits[['remaining']] < max(1, limit)) {
     print(paste0('sleeping for ', as.numeric(limits[['reset']]), ' minutes.'))
-    Sys.sleep(as.numeric(limits[['reset']]))
+    # Sys.sleep is in seconds but limits are in minutes - so multiply by 60 here.
+    Sys.sleep(as.numeric(limits[['reset']])*60)
   }
 }
 
@@ -280,7 +281,8 @@ collect_follower_timelines <- function (users, nfollowers = 90, nstatus = 200, m
   # Here we lookup the followers of each user.
   followers_user <- list()
   for (i in 1:length(followers)) {
-    followers_user[[i]] <- lookup_users(followers[[i]])
+    # Have to add an extra layer of [[1]] to followers to make sure it's atomic.
+    followers_user[[i]] <- lookup_users(followers[[i]][[1]])
   }
 
   # Remove users who are protected (private), don't have specified language, or don't have enough statuses.
@@ -324,6 +326,7 @@ collect_follower_timelines <- function (users, nfollowers = 90, nstatus = 200, m
   # count and then aggregated to the person level.
   timelinesdf
 }
+
 
 #' Creates a mentions network
 #'
