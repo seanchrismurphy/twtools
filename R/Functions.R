@@ -270,7 +270,8 @@ collect_follower_timelines <- function (users, nfollowers = 90, nstatus = 200, m
   followers <- list()
   for (i in 1:length(users)) {
 
-    control_rate_limit('followers/list', limit = ceiling(min(3*nfollowers, 10000)/5000))
+    # Followers/list doesn't seem to be working anymore, so hopefully followers/ids will work.
+    control_rate_limit('followers/ids', limit = ceiling(min(3*nfollowers, 10000)/5000))
 
     # We get 3 times nfollowers, because we'll lose a lot to having too few statuses.
     followers[[i]] <- get_followers(users[i], n = min(3*nfollowers, 10000))
