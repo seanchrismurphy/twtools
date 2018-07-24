@@ -301,7 +301,7 @@ collect_follower_timelines <- function (users, nfollowers = 90, nstatus = 200, m
   each <- ceiling(nstatus/200)
   k <- 0
 
-  control_rate_limit('application/rate_status', limit = 55, token = get_tokens()[1])
+  control_rate_limit('rate_limit', limit = 55, token = get_tokens())
 
   for (i in 1:length(follower_final)) {
 
@@ -314,7 +314,7 @@ collect_follower_timelines <- function (users, nfollowers = 90, nstatus = 200, m
     k <- k + each
 
     if (k > 50) {
-      control_rate_limit('application/rate_status', limit = 55, token = get_tokens()[1])
+      control_rate_limit('rate_limit', limit = 55, token = get_tokens())
       k <- 0
     }
   }
